@@ -136,7 +136,9 @@ def main(args):
 
     os.makedirs(args.ckpt_dir, exist_ok=True)
 
-    best_acc = 0.0
+    # Track best by selected metric
+    best_metric_val = float('-inf')
+    best_acc = 0.0  # kept for backward-compat logging if needed
     scale_logits = float(args.scale_logits)  # scale for cosine logits
 
     for epoch in range(1, args.epochs + 1):
@@ -372,11 +374,31 @@ def main(args):
                 extra=tar_block,
             )
         )
-        if metrics['best_acc'] > best_acc:
-            best_acc = metrics['best_acc']
+        # ----- Select best checkpoint by chosen metric -----
+        def metric_value(mdict, key: str):
+            if key == 'acc':
+                return float(mdict.get('best_acc', float('nan')))
+            if key == 'auc':
+                return float(mdict.get('auc', float('nan')))
+            if key == 'tar_1e-2':
+                v = mdict.get('tar_at_far', {}).get('1e-2', {})
+                return float(v.get('tar', float('nan')))
+            if key == 'tar_1e-3':
+                v = mdict.get('tar_at_far', {}).get('1e-3', {})
+                return float(v.get('tar', float('nan')))
+            return float('nan')
+
+        curr = metric_value(metrics, args.best_metric)
+        # Treat NaN as -inf for comparison
+        if curr != curr:  # NaN check
+            curr_cmp = float('-inf')
+        else:
+            curr_cmp = curr
+        if curr_cmp > best_metric_val:
+            best_metric_val = curr_cmp
             ckpt_path = os.path.join(args.ckpt_dir, "backbone_best.pt")
             torch.save(backbone.state_dict(), ckpt_path)
-            print("  ✓ saved:", ckpt_path)
+            print(f"  ✓ saved best by {args.best_metric}: {ckpt_path} (value={curr if curr==curr else 'nan'})")
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -401,6 +423,7 @@ if __name__ == "__main__":
     ap.add_argument("--scheduler", choices=["none", "cosine"], default="none", help="LR scheduler to use")
     ap.add_argument("--warmup_epochs", type=int, default=0, help="Number of warmup epochs for LR scheduler")
     ap.add_argument("--train_mode", choices=["pair", "arcface"], default="pair", help="Training objective: pair BCE or ArcFace classification")
+    ap.add_argument("--best_metric", choices=["acc","auc","tar_1e-2","tar_1e-3"], default="acc", help="Metric to select best checkpoint")
     ap.add_argument("--arcface_s", type=float, default=64.0, help="ArcFace scale s (logit multiplier)")
     ap.add_argument("--arcface_m", type=float, default=0.5, help="ArcFace margin m (radians)")
     ap.add_argument("--clip_grad_norm", type=float, default=0.0, help="Max global grad norm; 0 to disable")

@@ -1,13 +1,14 @@
 # FaceID Project
 
-Minimal training/evaluation pipeline for face verification using a ResNet-50 backbone.
-Supports two training objectives:
-- pair: Binary-classification on image pairs (BCE on cosine similarity)
+Minimal training and evaluation pipeline for face verification using a ResNet-50 backbone.
+
+Two training objectives are supported:
+- pair: Binary classification on image pairs (BCE on cosine similarity)
 - arcface: Classification with ArcMarginProduct (ArcFace)
 
-Recommended: arcface + pretrained backbone for stable and strong performance.
+Recommendation: use ArcFace with a pretrained backbone for stable and strong performance.
 
-## Repo layout
+## Repository layout
 
 ```
 src/
@@ -28,9 +29,9 @@ Expected data structure (ImageFolder):
   ...
 ```
 
-## Quick start (ArcFace - khuyến nghị)
+## Quick start (ArcFace - recommended)
 
-Pretrained ResNet-50, đóng băng 2 epoch, unfreeze với LR nhỏ cho backbone, cosine + warmup, kẹp gradient:
+Pretrained ResNet-50, freeze 2 epochs, unfreeze with a smaller LR for the backbone, cosine schedule with warmup, gradient clipping:
 
 ```bash
 python src/train.py \
@@ -54,27 +55,52 @@ python src/train.py \
 
 Defaults: batch_size=256, img_size=224.
 
+### Environment setup (quick suggestion)
+
+```bash
+# Optional: create a virtual environment
+python -m venv venv-pytorch
+source venv-pytorch/bin/activate
+
+# Install PyTorch + torchvision (example for CUDA 12.x)
+pip install --upgrade pip
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+# Other dependencies
+pip install numpy pillow scikit-learn
+```
+
+If your GPU/driver differs, see the official installation guide at pytorch.org.
+
 ## Results summary
 
 - Pair-BCE (from scratch):
-  - AUC ≈ 0.52–0.57; TAR@1e-2 ≈ 0.01–0.02; TAR@1e-3 ≈ 0.000–0.006 (gần ngẫu nhiên).
+  - AUC ≈ 0.52–0.57; TAR@1e-2 ≈ 0.01–0.02; TAR@1e-3 ≈ 0.000–0.006 (near-random).
 - ArcFace (pretrained, freeze=2, cosine+warmup):
   - Best around epoch 5:
     - acc=0.9489, auc=0.9815, TAR@1e-2=0.8438, TAR@1e-3=0.5397, th≈0.95
-  - Dấu hiệu overfit nhẹ sau đó; có thể early-stop theo AUC/TAR.
+  - Slight overfitting/oscillation afterwards; consider early stopping by AUC/TAR.
 
-Checkpoints: `models/backbone_best.pt` (theo acc). You may extend to save by AUC/TAR.
+Checkpoints: `models/backbone_best.pt` (by default, selected by accuracy). You can select a different metric with `--best_metric`:
+
+```bash
+# Save best checkpoint by AUC
+python src/train.py --train_mode arcface --pretrained --best_metric auc ...
+
+# Save by TAR@FAR=1e-3
+python src/train.py --train_mode arcface --pretrained --best_metric tar_1e-3 ...
+```
 
 ## Metrics
 
-- acc: accuracy trên cặp mẫu cân bằng pos/neg (balanced pairs).
-- th: ngưỡng cosine tối ưu theo acc ([-1, 1]).
-- AUC: ROC-AUC trên cặp mẫu.
-- TAR@FAR: True Accept Rate tại FAR mục tiêu (ví dụ 1e-2, 1e-3).
+- acc: accuracy on balanced positive/negative pairs.
+- th: cosine threshold maximizing accuracy (range [-1, 1]).
+- AUC: ROC-AUC over sampled verification pairs.
+- TAR@FAR: True Accept Rate at a given False Accept Rate (e.g., 1e-2, 1e-3).
 
-## Pair mode (tham khảo)
+## Pair mode (reference)
 
-Chạy từ đầu (không khuyến nghị cho chất lượng):
+From-scratch training (not recommended for quality):
 ```bash
 python src/train.py \
   --epochs 40 \
@@ -89,10 +115,10 @@ python src/train.py \
   --val   /home/hoc/MyProjects/faceid-project/data/val \
   --ckpt_dir /home/hoc/MyProjects/faceid-project/models
 ```
-Gợi ý nếu vẫn dùng pair mode: thêm `--pretrained --freeze_backbone_epochs 2` hoặc chuyển sang contrastive/triplet loss.
+If you stay with pair mode, prefer `--pretrained --freeze_backbone_epochs 2`, or switch to contrastive/triplet losses for stronger supervision.
 
 ## Notes
 
-- Đã bật mixed precision + TF32 (nếu GPU hỗ trợ), cuDNN benchmark, channels_last.
-- Tăng tốc / ổn định: `--clip_grad_norm`, chỉnh `--arcface_m`, `--backbone_lr_scale`, `--warmup_epochs`.
-- Phần lớn file sinh ra (models/, data/, logs/, results/) đã được bỏ qua bởi .gitignore.
+- Mixed precision and TF32 (if supported) are enabled, as well as cuDNN benchmark and channels_last.
+- Useful knobs: `--clip_grad_norm`, tune `--arcface_m`, `--backbone_lr_scale`, `--warmup_epochs`.
+- Most generated artifacts (models/, data/, logs/, results/) are ignored by .gitignore.
