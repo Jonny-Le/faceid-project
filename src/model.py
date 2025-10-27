@@ -1,3 +1,4 @@
+import math
 import torch                
 import torch.nn as nn
 from torchvision import models
@@ -61,16 +62,17 @@ class ArcMarginProduct(nn.Module):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
-        self.s = s
-        self.m = m
+        # store as floats to avoid device mismatches
+        self.s = float(s)
+        self.m = float(m)
         self.weight = nn.Parameter(torch.FloatTensor(out_features, in_features))
         nn.init.xavier_uniform_(self.weight)
         self.easy_margin = easy_margin
-        # Precompute constants for efficiency
-        self.cos_m = torch.cos(torch.tensor(m))
-        self.sin_m = torch.sin(torch.tensor(m))
-        self.th = torch.cos(torch.tensor(3.14159265) - torch.tensor(m))
-        self.mm = torch.sin(torch.tensor(3.14159265) - torch.tensor(m)) * m
+        # Precompute constants (floats) for efficiency and device safety
+        self.cos_m = math.cos(self.m)
+        self.sin_m = math.sin(self.m)
+        self.th = math.cos(math.pi - self.m)
+        self.mm = math.sin(math.pi - self.m) * self.m
 
     def forward(self, input, label):
         # input: (N, in_features) normalized embeddings

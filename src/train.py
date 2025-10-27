@@ -138,6 +138,7 @@ def main(args):
 
     # Track best by selected metric
     best_metric_val = float('-inf')
+    no_improve_epochs = 0
     best_acc = 0.0  # kept for backward-compat logging if needed
     scale_logits = float(args.scale_logits)  # scale for cosine logits
 
@@ -394,11 +395,23 @@ def main(args):
             curr_cmp = float('-inf')
         else:
             curr_cmp = curr
-        if curr_cmp > best_metric_val:
+        improved = False
+        # Require improvement greater than min_delta (if configured)
+        if curr_cmp > (best_metric_val + float(args.early_stop_min_delta)):
             best_metric_val = curr_cmp
+            improved = True
             ckpt_path = os.path.join(args.ckpt_dir, "backbone_best.pt")
             torch.save(backbone.state_dict(), ckpt_path)
             print(f"  ✓ saved best by {args.best_metric}: {ckpt_path} (value={curr if curr==curr else 'nan'})")
+        # Early stopping bookkeeping
+        if args.early_stop_patience and args.early_stop_patience > 0:
+            if improved:
+                no_improve_epochs = 0
+            else:
+                no_improve_epochs += 1
+                if no_improve_epochs >= args.early_stop_patience:
+                    print(f"  ↳ early stopping: no improvement in {args.early_stop_patience} epochs (best {args.best_metric}={best_metric_val:.6f})")
+                    break
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -424,6 +437,8 @@ if __name__ == "__main__":
     ap.add_argument("--warmup_epochs", type=int, default=0, help="Number of warmup epochs for LR scheduler")
     ap.add_argument("--train_mode", choices=["pair", "arcface"], default="pair", help="Training objective: pair BCE or ArcFace classification")
     ap.add_argument("--best_metric", choices=["acc","auc","tar_1e-2","tar_1e-3"], default="acc", help="Metric to select best checkpoint")
+    ap.add_argument("--early_stop_patience", type=int, default=0, help="Stop early after N epochs with no improvement (0=disable)")
+    ap.add_argument("--early_stop_min_delta", type=float, default=0.0, help="Minimum metric delta to qualify as improvement")
     ap.add_argument("--arcface_s", type=float, default=64.0, help="ArcFace scale s (logit multiplier)")
     ap.add_argument("--arcface_m", type=float, default=0.5, help="ArcFace margin m (radians)")
     ap.add_argument("--clip_grad_norm", type=float, default=0.0, help="Max global grad norm; 0 to disable")
