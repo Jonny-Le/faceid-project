@@ -1,0 +1,89 @@
+==============================================
+🧠  FACE VERIFICATION PROJECT - TODO GUIDE
+==============================================
+
+📍 MỤC TIÊU
+Thiết lập đầy đủ môi trường và khung huấn luyện nhận dạng khuôn mặt (Face Verification)
+trên GPU RTX 5090, với PyTorch nightly (CUDA 12.8) và môi trường venv-pytorch.
+
+----------------------------------------------
+I. CẤU TRÚC DỰ ÁN
+----------------------------------------------
+~/myprojects/faceid-project/
+├── src/                -> Mã nguồn chính (dataset, model, utils, train)
+├── data/               -> Ảnh khuôn mặt, chia thành train/val
+├── models/             -> Nơi lưu checkpoint (.pt)
+├── results/            -> Kết quả inference / metric
+├── notebooks/          -> Thử nghiệm Jupyter nếu cần
+├── logs/               -> Ghi log huấn luyện (TensorBoard, CSV, v.v.)
+└── TODO_setup.txt      -> File hướng dẫn này
+
+----------------------------------------------
+II. CHUẨN BỊ DỮ LIỆU
+----------------------------------------------
+1️⃣ Tạo cấu trúc dữ liệu:
+
+data/
+├── train/
+│   ├── person_a/
+│   │   ├── img1.jpg
+│   │   ├── img2.jpg
+│   └── ...
+└── val/
+    ├── person_x/
+    └── person_y/
+
+Mỗi thư mục con đại diện cho 1 người, chứa nhiều ảnh của người đó.
+
+2️⃣ Có thể dùng Python hoặc script để resize, crop hoặc chia train/val tự động.
+
+----------------------------------------------
+III. KÍCH HOẠT MÔI TRƯỜNG
+----------------------------------------------
+source ~/venv-pytorch/bin/activate
+
+Dấu nhắc sẽ hiển thị:
+(venv-pytorch) hoc@hoc-System-Product-Name:~/myprojects/faceid-project$
+
+----------------------------------------------
+IV. CHẠY THỬ HUẤN LUYỆN
+----------------------------------------------
+python src/train.py --epochs 1 --batch_size 64
+
+Sau khi chạy xong:
+- Model tốt nhất lưu tại: models/backbone_best.pt
+- Log thời gian và accuracy in ra terminal
+
+----------------------------------------------
+V. TÙY CHỈNH & GHI CHÚ
+----------------------------------------------
+⚙️ Các tham số hữu ích:
+--img_size        : kích thước ảnh (default 224)
+--batch_size      : batch training (default 64)
+--embed_dim       : kích thước vector embedding (default 512)
+--pairs_per_epoch : số cặp ảnh mỗi epoch
+--pos_ratio       : tỉ lệ ảnh cùng người (0.5 mặc định)
+--eval_pairs      : số cặp dùng để kiểm tra accuracy
+--epochs          : số epoch huấn luyện
+
+💡 Có thể bật thêm TensorBoard để theo dõi:
+tensorboard --logdir logs/
+
+----------------------------------------------
+VI. GHI CHÚ KỸ THUẬT
+----------------------------------------------
+- Sử dụng ResNet50 + ArcFace (đã có module sẵn)
+- Huấn luyện bằng contrastive cosine loss (BCE)
+- Dùng FP16 (AMP) và channels_last để tăng tốc
+- Đã bật TF32 cho Tensor Cores của RTX 5090:
+  torch.backends.cuda.matmul.fp32_precision = "high"
+  torch.backends.cudnn.conv.fp32_precision  = "tf32"
+
+----------------------------------------------
+VII. SAU KHI THÀNH CÔNG
+----------------------------------------------
+✅ Môi trường: ổn định và cố định
+✅ Driver 580.95.05, CUDA 12.6 / 12.8 OK
+✅ PyTorch nightly + cu128 hỗ trợ RTX 5090
+✅ Dự án đã sẵn sàng huấn luyện và mở rộng
+

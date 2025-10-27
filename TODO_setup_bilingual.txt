@@ -1,0 +1,148 @@
+=============================================================
+🧠  FACE VERIFICATION PROJECT – HƯỚNG DẪN SONG NGỮ / BILINGUAL SETUP GUIDE
+=============================================================
+
+📍 MỤC TIÊU / OBJECTIVE
+-------------------------------------------------------------
+🇻🇳 Thiết lập môi trường huấn luyện AI (Face Verification) hoàn chỉnh trên GPU RTX 5090,  
+sử dụng PyTorch (nightly) với CUDA 12.8 và môi trường ảo venv-pytorch.  
+
+🇺🇸 Fully set up an AI Face Verification training environment on RTX 5090 GPU,  
+using PyTorch (nightly build) with CUDA 12.8 inside the `venv-pytorch` environment.
+
+-------------------------------------------------------------
+I. CẤU TRÚC DỰ ÁN / PROJECT STRUCTURE
+-------------------------------------------------------------
+~/myprojects/faceid-project/
+├── src/                → Mã nguồn chính / Main Python source code  
+├── data/               → Ảnh huấn luyện & kiểm thử / Training & validation data  
+├── models/             → Checkpoints (.pt) / Trained models  
+├── results/            → Kết quả inference / Evaluation results  
+├── logs/               → File log & TensorBoard / Training logs  
+├── notebooks/          → Notebook thử nghiệm / Optional notebooks  
+└── TODO_setup_bilingual.txt → File hướng dẫn này / This guide
+
+-------------------------------------------------------------
+II. CHUẨN BỊ DỮ LIỆU / DATA PREPARATION
+-------------------------------------------------------------
+🇻🇳 Tạo cấu trúc dữ liệu như sau:  
+🇺🇸 Create the data directory structure as below:
+
+data/
+├── train/
+│   ├── person_a/ img1.jpg img2.jpg ...
+│   ├── person_b/ ...
+└── val/
+    ├── person_x/ ...
+    └── person_y/ ...
+
+👉 `train/` dùng để huấn luyện – `val/` để kiểm thử accuracy.  
+👉 `train/` is for training, and `val/` is for verification testing.
+
+Mỗi thư mục con tương ứng với một người.  
+Each subfolder corresponds to a single individual.
+
+-------------------------------------------------------------
+III. KÍCH HOẠT MÔI TRƯỜNG / ACTIVATE THE ENVIRONMENT
+-------------------------------------------------------------
+🇻🇳 Kích hoạt môi trường ảo PyTorch:  
+🇺🇸 Activate your virtual PyTorch environment:
+
+source ~/venv-pytorch/bin/activate
+
+Khi kích hoạt thành công:  
+Once activated:
+(venv-pytorch) hoc@hoc-System-Product-Name:~/myprojects/faceid-project$
+
+-------------------------------------------------------------
+IV. CHẠY HUẤN LUYỆN / RUN TRAINING
+-------------------------------------------------------------
+🇻🇳 Chạy thử huấn luyện 1 epoch đầu tiên để kiểm tra môi trường.  
+🇺🇸 Run a 1-epoch test training to verify everything works.
+
+python src/train.py --epochs 1 --batch_size 64
+
+Kết quả / Output:
+✅ Model tốt nhất lưu tại: models/backbone_best.pt  
+✅ Accuracy hiển thị trên terminal  
+✅ Log huấn luyện ghi vào logs/
+
+-------------------------------------------------------------
+V. THAM SỐ QUAN TRỌNG / IMPORTANT ARGUMENTS
+-------------------------------------------------------------
+| Tham số / Argument     | Mô tả / Description                    | Mặc định / Default |
+|-------------------------|----------------------------------------|--------------------|
+| --img_size              | Kích thước ảnh đầu vào / Image size    | 224 |
+| --batch_size            | Batch huấn luyện / Training batch size | 64 |
+| --embed_dim             | Kích thước vector đặc trưng / Embedding dim | 512 |
+| --pairs_per_epoch       | Số cặp ảnh mỗi epoch / Image pairs per epoch | 50000 |
+| --pos_ratio             | Tỷ lệ cặp cùng người / Positive pair ratio | 0.5 |
+| --epochs                | Số epoch / Number of epochs            | 1 |
+| --eval_pairs            | Cặp dùng để kiểm thử / Eval pairs     | 10000 |
+
+🇻🇳 Dùng TensorBoard để xem log:  
+🇺🇸 Use TensorBoard to monitor training:
+tensorboard --logdir logs/
+
+-------------------------------------------------------------
+VI. GHI CHÚ KỸ THUẬT / TECHNICAL NOTES
+-------------------------------------------------------------
+🇻🇳 Dự án bật tối ưu GPU để tận dụng tối đa RTX 5090:  
+🇺🇸 The project enables all GPU optimizations for RTX 5090:
+
+✅ FP16 Automatic Mixed Precision (AMP)  
+✅ Memory format `channels_last`  
+✅ TF32 bật sẵn cho Tensor Cores:
+torch.backends.cuda.matmul.fp32_precision = "high"
+torch.backends.cudnn.conv.fp32_precision  = "tf32"
+
+✅ Model chính: ResNet50 + ArcFace  
+✅ Loss: cosine + binary cross entropy  
+✅ Evaluation: cosine threshold accuracy
+
+-------------------------------------------------------------
+VII. XÁC NHẬN THIẾT LẬP / VERIFY ENVIRONMENT
+-------------------------------------------------------------
+🇻🇳 Chạy đoạn sau để xác nhận driver & GPU hoạt động đúng:  
+🇺🇸 Run this to confirm PyTorch + CUDA detect your GPU:
+
+python - <<'PY'
+import torch
+print("Torch:", torch.__version__, "CUDA:", torch.version.cuda)
+print("CUDA available:", torch.cuda.is_available())
+if torch.cuda.is_available():
+    print("Device:", torch.cuda.get_device_name(0))
+    print("Capability:", torch.cuda.get_device_capability(0))
+PY
+
+Kỳ vọng kết quả / Expected:
+Torch: 2.10.0.dev...  CUDA: 12.8  
+CUDA available: True  
+Device: NVIDIA GeForce RTX 5090  
+Capability: (12, 0)
+
+-------------------------------------------------------------
+VIII. GỢI Ý MỞ RỘNG / NEXT STEPS
+-------------------------------------------------------------
+1️⃣ Huấn luyện lại với dataset lớn và augmentations.  
+   → Train on larger datasets with data augmentations.  
+2️⃣ Thêm module ArcFace để tăng độ phân biệt.  
+   → Add ArcMarginProduct for supervised fine-tuning.  
+3️⃣ Đánh giá bằng ROC-AUC hoặc EER metrics.  
+   → Evaluate with ROC-AUC or EER for verification quality.  
+4️⃣ Sử dụng torch.compile() để tối ưu hiệu năng.  
+   → Use torch.compile() for performance optimization.  
+
+-------------------------------------------------------------
+IX. TRẠNG THÁI CUỐI / FINAL CHECKLIST
+-------------------------------------------------------------
+✅ NVIDIA driver 580.95.05 hoạt động đúng (CUDA 12.6–12.8).  
+✅ PyTorch nightly (cu128) nhận RTX 5090.  
+✅ GEMM FP16 benchmark chạy ổn định.  
+✅ Dự án cố định môi trường tại venv-pytorch.  
+✅ Sẵn sàng huấn luyện thực tế.
+
+-------------------------------------------------------------
+📄 File này được lưu tại / This file is located at:
+~/myprojects/faceid-project/TODO_setup_bilingual.txt
+=============================================================

@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+
+# Virtual envs (optional)
+.venv/
+venv/
+
+# Data and outputs (keep large/binary files out of git)
+data/
+logs/
+models/
+results/
+*.pt
+*.pth
+*.ckpt
+*.bin
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Editors/IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
